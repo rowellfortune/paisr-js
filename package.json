@@ -1,6 +1,6 @@
 {
   "name": "paisr-js",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Typed JavaScript/TypeScript client for the Paisr API",
   "type": "module",
   "license": "MIT",
