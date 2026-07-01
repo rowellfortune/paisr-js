@@ -16,6 +16,8 @@ import { LogsResource } from "./resources/logs.js";
 export { PaisrError } from "./client.js";
 export type { PaisrOptions, PaisrEnvironment, PaisrClient } from "./client.js";
 export type { paths, components } from "./generated/types.js";
+export { verifyWebhookSignature, constructWebhookEvent } from "./webhook-signature.js";
+export type { VerifyWebhookSignatureOptions } from "./webhook-signature.js";
 
 /**
  * Client for the Paisr API (https://github.com/paisrtechnologies/pcb-openapi).

@@ -1,9 +1,26 @@
 {
   "name": "paisr-js",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed JavaScript/TypeScript client for the Paisr API",
   "type": "module",
   "license": "MIT",
+  "author": "rowellfortune",
+  "homepage": "https://github.com/rowellfortune/paisr-js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rowellfortune/paisr-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rowellfortune/paisr-js/issues"
+  },
+  "keywords": [
+    "paisr",
+    "sdk",
+    "api-client",
+    "wallets",
+    "payments",
+    "typescript"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -71,6 +71,25 @@ const paisr = new Paisr({
 });
 ```
 
+### Verifying webhook signatures
+
+Paisr signs each webhook delivery with an `X-PCB-Signature` header (HMAC-SHA256 over `${X-PCB-Timestamp}.${rawBody}`, keyed with the webhook's signing secret — see `paisr.webhooks.getSecret()`). Use `constructWebhookEvent` to verify and parse a delivery in one step:
+
+```ts
+import { constructWebhookEvent } from "paisr-js";
+
+// e.g. inside an Express/Fastify/Hono handler — verify against the *raw* request body,
+// not a re-serialized parsed object, or the signature check will fail.
+const event = await constructWebhookEvent({
+  payload: rawBody, // string
+  signature: req.header("X-PCB-Signature")!,
+  timestamp: req.header("X-PCB-Timestamp")!,
+  secret: process.env.PAISR_WEBHOOK_SECRET!,
+});
+```
+
+Or call `verifyWebhookSignature({ payload, signature, timestamp, secret })` directly if you just need a boolean.
+
 ## Resources
 
 | Namespace | Covers |
