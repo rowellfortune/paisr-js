@@ -2,7 +2,7 @@
 
 A typed JavaScript/TypeScript client for the [Paisr API](https://github.com/paisrtechnologies/pcb-openapi) — wallets, transfers, customers, vouchers, plans, invoices, subscriptions, payments, provider connections, webhooks, and access tokens.
 
-Built on [`openapi-fetch`](https://github.com/openapi-ts/openapi-typescript/tree/main/packages/openapi-fetch) with types generated from Paisr's OpenAPI spec via [`openapi-typescript`](https://github.com/openapi-ts/openapi-typescript). Works in Node.js 18+ and in the browser.
+Built on [`axios`](https://axios-http.com/) with types generated from Paisr's OpenAPI spec via [`openapi-typescript`](https://github.com/openapi-ts/openapi-typescript). Works in Node.js 18+ and in the browser.
 
 ## Install
 
@@ -61,15 +61,31 @@ try {
 }
 ```
 
-### Custom base URL / fetch
+### Custom base URL / axios instance
 
 ```ts
 const paisr = new Paisr({
   apiKey: "...",
   baseUrl: "https://api.staging.paisr.tech/v2", // overrides `environment`
-  fetch: myCustomFetch, // e.g. for retries, proxying, or testing
+  axiosInstance: myAxiosInstance, // e.g. for retries, proxying, or testing
 });
 ```
+
+`baseUrl` must be `https://` — a non-`https://` value throws unless you pass `allowInsecureBaseUrl: true` (e.g. for local proxying against a plain-HTTP dev server).
+
+### Per-request headers (e.g. idempotency keys)
+
+Every client method accepts a `headers` option, forwarded as-is on that request:
+
+```ts
+await paisr.payments.initiate(
+  "wallet",
+  { invoice_id, ... },
+  { headers: { "Idempotency-Key": crypto.randomUUID() } },
+);
+```
+
+Use this to attach an idempotency key on retried payment/transfer-creating calls, if the target Paisr environment supports one.
 
 ### Verifying webhook signatures
 
@@ -90,6 +106,15 @@ const event = await constructWebhookEvent({
 
 Or call `verifyWebhookSignature({ payload, signature, timestamp, secret })` directly if you just need a boolean.
 
+By default, deliveries older than 5 minutes are rejected as expired/replayed webhooks. Pass `toleranceSeconds: 0` to disable this check, or a different value to widen/narrow the window.
+
+## Security notes
+
+- **Raw card data (`payments.initiate("card", ...)`)**: this method requires a raw card number and CVV/CVC in `card_details`. Collecting and forwarding that data yourself puts your own systems in full PCI DSS scope (SAQ D). Prefer a hosted/tokenized card entry flow if Paisr offers one.
+- **Webhook replay protection**: `verifyWebhookSignature`/`constructWebhookEvent` reject deliveries whose `X-PCB-Timestamp` is more than 5 minutes old by default — see above to adjust.
+- **Transport security**: if you override `baseUrl` with a non-`https://` URL, the SDK logs a warning, since your API key and any payment data would otherwise be sent unencrypted.
+- **Timeouts**: the default axios instance uses a 30s request timeout; pass your own `axiosInstance` to customize.
+
 ## Resources
 
 | Namespace | Covers |
@@ -101,7 +126,7 @@ Or call `verifyWebhookSignature({ payload, signature, timestamp, secret })` dire
 | `paisr.customers` | Customers |
 | `paisr.vouchers` | Vouchers, applying voucher codes |
 | `paisr.plans` | Plans, plus nested `.options` (price options) |
-| `paisr.invoices` | Invoices, plus nested `.items` (line items) |
+| `paisr.invoices` | Invoices, plus nested `.line_items` |
 | `paisr.subscriptions` | Subscriptions, restore/cancel |
 | `paisr.payments` | Payments, refunds |
 | `paisr.providers` | Provider connections |

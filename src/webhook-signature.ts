@@ -5,8 +5,13 @@
  * over `${X-PCB-Timestamp}.${rawBody}`, using the webhook's signing secret
  * (see `paisr.webhooks.getSecret()` / `.rotateSecret()`).
  *
+ * By default, deliveries older than 5 minutes are rejected to prevent replay attacks
+ * (a captured, validly-signed payload being resent). Pass `toleranceSeconds: 0` to disable.
+ *
  * @see https://docs.paisr.tech/v2/api/webhooks
  */
+
+const DEFAULT_TOLERANCE_SECONDS = 300;
 
 export interface VerifyWebhookSignatureOptions {
   /** The exact raw request body bytes/string as received — do not re-stringify a parsed object. */
@@ -17,6 +22,11 @@ export interface VerifyWebhookSignatureOptions {
   timestamp: string;
   /** The webhook's signing secret. */
   secret: string;
+  /**
+   * Maximum allowed age of `timestamp`, in seconds, before a delivery is treated as an
+   * expired/replayed webhook. Defaults to 300 (5 minutes). Pass `0` to disable this check.
+   */
+  toleranceSeconds?: number;
 }
 
 function toHex(bytes: ArrayBuffer): string {
@@ -34,9 +44,20 @@ function timingSafeEqual(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
-/** Returns `true` if the given webhook delivery has a valid signature. */
+/**
+ * Paisr's docs don't pin down whether `X-PCB-Timestamp` is second- or millisecond-precision,
+ * so treat plausible Unix-seconds values (<=10 digits) as seconds and anything longer as ms.
+ */
+function timestampToMillis(timestamp: string): number | undefined {
+  if (!/^\d+$/.test(timestamp)) return undefined;
+  const value = Number(timestamp);
+  if (!Number.isFinite(value)) return undefined;
+  return timestamp.length <= 10 ? value * 1000 : value;
+}
+
+/** Returns `true` if the given webhook delivery has a valid, non-expired signature. */
 export async function verifyWebhookSignature(options: VerifyWebhookSignatureOptions): Promise<boolean> {
-  const { payload, signature, timestamp, secret } = options;
+  const { payload, signature, timestamp, secret, toleranceSeconds = DEFAULT_TOLERANCE_SECONDS } = options;
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -48,7 +69,14 @@ export async function verifyWebhookSignature(options: VerifyWebhookSignatureOpti
   const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${payload}`));
   const expected = toHex(digest);
 
-  return timingSafeEqual(expected, signature);
+  if (!timingSafeEqual(expected, signature)) return false;
+
+  if (toleranceSeconds === 0) return true;
+
+  const timestampMs = timestampToMillis(timestamp);
+  if (timestampMs === undefined) return false;
+
+  return Math.abs(Date.now() - timestampMs) <= toleranceSeconds * 1000;
 }
 
 /**

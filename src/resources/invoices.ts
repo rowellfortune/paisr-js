@@ -11,7 +11,7 @@ type AddLineItemsBody =
 type UpdateLineItemBody =
   NonNullable<paths["/invoices/{invoice_id}/items/{item_id}"]["put"]["requestBody"]>["content"]["application/json"];
 
-class InvoiceItemsResource {
+class InvoiceLineItemsResource {
   constructor(private readonly client: PaisrClient) {}
 
   /** Add line items to an invoice. */
@@ -40,10 +40,10 @@ class InvoiceItemsResource {
 }
 
 export class InvoicesResource {
-  readonly items: InvoiceItemsResource;
+  readonly line_items: InvoiceLineItemsResource;
 
   constructor(private readonly client: PaisrClient) {
-    this.items = new InvoiceItemsResource(client);
+    this.line_items = new InvoiceLineItemsResource(client);
   }
 
   /** Fetch a list of invoices, optionally filtered by resource, currency, or status. */
